@@ -1,0 +1,288 @@
+package org.vous.facelib.tests.editor;
+
+import java.awt.BorderLayout;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.util.Stack;
+
+import javax.imageio.ImageIO;
+import javax.swing.BorderFactory;
+import javax.swing.JFileChooser;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+import javax.swing.JLabel;
+
+import org.vous.facelib.frame.Frame;
+import org.vous.facelib.frame.filters.FilterSequence;
+import org.vous.facelib.frame.filters.GrayFilter;
+import org.vous.facelib.frame.filters.IFrameFilter;
+import org.vous.facelib.frame.filters.MedianFilter;
+import org.vous.facelib.frame.filters.MirrorFilter;
+import org.vous.facelib.frame.filters.ThresholdFilter;
+import org.vous.facelib.tests.util.FramePanel;
+import org.vous.facelib.tests.util.TestApp;
+
+public class Editor
+{ 
+        private FramePanel mPanel; 
+        private TestApp mApp;
+        private JLabel mStatus;
+        private Frame mCurrentFrame;
+        private Stack<Frame> mUndoStack;
+        
+        public static void main(String[] args)
+        {
+                new Editor().demo();
+        }
+        
+        public Editor()
+        {
+                mApp = new TestApp("Mini-Photoshop");
+                mPanel = new FramePanel();
+                mStatus = new JLabel("Mini-Photoshop");
+                mUndoStack = new Stack<Frame>();
+                mCurrentFrame = null;
+        }
+        
+        public void demo()
+        {
+        		mApp.setSize(800, 600);
+                mApp.setJMenuBar(createMenu());
+                mApp.getContentPane().add(new JScrollPane(mPanel));
+                
+                JPanel panel = new JPanel();
+                panel.add(mStatus);
+                mStatus.setBorder(BorderFactory.createEtchedBorder());
+                mApp.getContentPane().add(mStatus, BorderLayout.SOUTH);
+                
+        
+        SwingUtilities.invokeLater(new Runnable()
+        {
+                public void run()
+                {
+                        mApp.setVisible(true);
+                }
+        });
+                
+        }
+        
+        private JMenuBar createMenu()
+        {
+                int shortcutKey = Toolkit.getDefaultToolkit().getMenuShortcutKeyMask();
+                JMenuBar menu = new JMenuBar();
+                JMenuItem item = null;
+                
+                JMenu fileMenu = new JMenu("File");
+                menu.add(fileMenu);
+                fileMenu.setMnemonic(KeyEvent.VK_F);
+                
+                item = new JMenuItem("Open");
+                fileMenu.add(item);
+                item.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, shortcutKey));
+                item.addActionListener(new ActionListener()
+                {
+                        public void actionPerformed(ActionEvent event)
+                        {
+                                doFileOpen();
+                        }
+                });
+                
+                item = new JMenuItem("Exit");
+                fileMenu.add(item);
+                item.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, shortcutKey));
+                item.addActionListener(new ActionListener()
+                {
+            public void actionPerformed(ActionEvent event)
+            {
+                doFileExit();
+            }
+                });
+                
+                JMenu editMenu = new JMenu("Edit");
+                menu.add(editMenu);
+                editMenu.setMnemonic(KeyEvent.VK_E);
+                
+                item = new JMenuItem("Undo");
+                editMenu.add(item);
+                item.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, shortcutKey));
+                item.addActionListener(new ActionListener()
+                {
+                        public void actionPerformed(ActionEvent event)
+                        {
+                                doEditUndo();
+                        }
+                });
+                
+                JMenu filterMenu = new JMenu("Filters");
+                menu.add(filterMenu);
+                filterMenu.setMnemonic(KeyEvent.VK_I);
+                
+                item = new JMenuItem("Gray");
+                filterMenu.add(item);
+                item.setMnemonic(KeyEvent.VK_G);
+                item.addActionListener(new ActionListener()
+                {
+                        public void actionPerformed(ActionEvent event)
+                        {
+                                doFilterGray();
+                        }
+                });
+                
+                item = new JMenuItem("Median");
+                filterMenu.add(item);
+                item.setMnemonic(KeyEvent.VK_M);
+                item.addActionListener(new ActionListener()
+                {
+                        public void actionPerformed(ActionEvent event)
+                        {
+                                doFilterMedian();
+                        }
+                });
+                
+                item = new JMenuItem("Mirror");
+                filterMenu.add(item);
+                item.setMnemonic(KeyEvent.VK_I);
+                item.addActionListener(new ActionListener()
+                {
+                        public void actionPerformed(ActionEvent event)
+                        {
+                                doFilterMirror();
+                        }
+                });
+                
+                item = new JMenuItem("Threshold");
+                filterMenu.add(item);
+                item.setMnemonic(KeyEvent.VK_T);
+                item.addActionListener(new ActionListener()
+                {
+                        public void actionPerformed(ActionEvent event)
+                        {
+                                doFilterThreshold();
+                        }
+                });
+        
+                return menu;
+        }
+        
+        private void doFileOpen()
+        {
+                JFileChooser fileChooser = new JFileChooser();
+                if (fileChooser.showOpenDialog(mApp) != JFileChooser.APPROVE_OPTION)
+                        return;
+                
+                File file = fileChooser.getSelectedFile();
+                BufferedImage image = null;
+                try
+                {
+                        image = ImageIO.read(file);
+                }
+                
+                catch (Exception e)
+                {
+                        JOptionPane.showMessageDialog(mApp, "Invalid image", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                }
+                
+                /*
+                 * 
+                 */
+                
+                mCurrentFrame = new Frame(image);
+                mPanel.updateFrame(mCurrentFrame);
+                mStatus.setText(file.getName() + " (" + mCurrentFrame.getWidth() + "," +  mCurrentFrame.getHeight() + ")");
+        }
+        
+        private void doFileExit()
+        {
+                System.exit(0);
+        }
+        
+        private void doEditUndo()
+        {
+                if (mUndoStack.size() != 0)
+                {
+                        mCurrentFrame = mUndoStack.pop();
+                        mPanel.updateFrame(mCurrentFrame);
+                }
+        }
+        
+        private void doFilterGray()
+        {
+                if (mCurrentFrame != null)
+                {
+                        mUndoStack.push(mCurrentFrame);
+                        executeFilter(mPanel, new GrayFilter(), mCurrentFrame);
+                }
+        }
+        
+        private void doFilterMedian()
+        {
+                if (mCurrentFrame != null)
+                {
+                        mUndoStack.push(mCurrentFrame);
+                        executeFilter(mPanel, new MedianFilter(), mCurrentFrame);
+                }
+        }
+        
+        private void doFilterMirror()
+        {
+                if (mCurrentFrame != null)
+                {
+                        mUndoStack.push(mCurrentFrame);
+                        executeFilter(mPanel, new MirrorFilter(), mCurrentFrame);
+                }
+        }
+        
+        private void doFilterThreshold()
+        {
+                if (mCurrentFrame != null)
+                {
+                        mUndoStack.push(mCurrentFrame.clone());
+                        executeFilter(mPanel, new ThresholdFilter(), mCurrentFrame);
+                }
+        }
+        
+        private void executeFilter(final FramePanel panel, final IFrameFilter filter, final Frame source)
+        {
+                final FilterSequence seq = new FilterSequence();
+                seq.addFilter(filter);
+                
+                SwingWorker<Frame, Void> worker = new SwingWorker<Frame, Void>()
+                {
+                        public Frame doInBackground()
+                        {       
+                                mStatus.setText("Applying filter (" + filter + ")");
+                                return seq.apply(source);
+                        }
+                        
+                        public void done()
+                        {
+                                try
+                                {
+                                        mCurrentFrame = get();
+                                        mStatus.setText("Filter applied (" + seq.getOverhead() + " msecs)");
+                                        panel.updateFrame(mCurrentFrame);
+                                }
+                                
+                                catch (Exception e)
+                                {
+                                        mStatus.setText("Error: " + e.getMessage());
+                                }
+                        }
+                };
+                
+                worker.execute();
+        }
+        
+}

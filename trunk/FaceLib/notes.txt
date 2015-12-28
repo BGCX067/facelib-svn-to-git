@@ -1,0 +1,26 @@
+int currentTabs = mTabs.getTabCount();
+    	
+    	if (mPrevTabCount == 0) mPrevTabCount = currentTabs;
+    	
+    	if (currentTabs == mPrevTabCount) // nothing but the selected tab changed
+    	{	
+    		for (ITabListener listener : super.getCollection())
+        		listener.tabSelected(tab);
+    	}
+    	
+    	else if (currentTabs < mPrevTabCount) // a tab was closed
+    	{
+    		for (ITabListener listener : super.getCollection())
+        		listener.tabCountChanged(mTabs.getTabCount());
+    	}
+    	
+    	else // a tab was added and therefore selected
+    	{
+    		for (ITabListener listener : super.getCollection())
+    		{
+        		listener.tabCountChanged(mTabs.getTabCount());
+        		listener.tabSelected(tab);
+    		}
+    	}
+    	
+    	mPrevTabCount = mTabs.getTabCount();
